@@ -1,0 +1,45 @@
+CREATE TABLE "reactions" (
+	"id"	INTEGER PRIMARY KEY AUTOINCREMENT,
+	"value"	INTEGER,
+	"description"	INTEGER
+);
+CREATE TABLE IF NOT EXISTS "rates" (
+	"message_id"	INTEGER,
+	"reaction_id"	INTEGER,
+	"result"	INTEGER,
+	FOREIGN KEY("message_id") REFERENCES "messages"("id")
+	FOREIGN KEY("reaction_id") REFERENCES reactions("id")
+);
+CREATE TABLE IF NOT EXISTS "messages" (
+	"id"	INTEGER PRIMARY KEY AUTOINCREMENT,
+	"tmsg_id"	INTEGER,
+	"chat_id"	INTEGER,
+	"user_id"	INTEGER,
+	"from_user_id"	INTEGER,
+	"forwarded_from_id"	INTEGER,
+	FOREIGN KEY("chat_id") REFERENCES "chats" ( "id" ),
+	FOREIGN KEY("user_id") REFERENCES users ( "id" )
+);
+CREATE TABLE IF NOT EXISTS "users" (
+	"id"	INTEGER,
+	"tuser_id"	INTEGER UNIQUE,
+	"nickname"	TEXT,
+	"fname"	TEXT,
+	"lname"	INTEGER,
+	PRIMARY KEY("id" AUTOINCREMENT)
+);
+CREATE TABLE IF NOT EXISTS "voters" (
+	"message_id"	INTEGER,
+	"user_id"	INTEGER,
+	"reaction_id"	INTEGER,
+	FOREIGN KEY("message_id") REFERENCES "messages"("id"),
+	FOREIGN KEY("user_id") REFERENCES "users"("id"),
+	FOREIGN KEY("reaction_id") REFERENCES "reactions"("id")
+);
+CREATE TABLE IF NOT EXISTS "chats" (
+        "id"    INTEGER PRIMARY KEY AUTOINCREMENT,
+        "tchat_id"      INTEGER UNIQUE,
+        "name"  TEXT,
+        "nickname"      TEXT,
+        "description"   TEXT
+);
