@@ -606,15 +606,21 @@ def _grok_chat(promptObj, image_data=None, image_url=None):
 
         client = XAIClient(api_key=xai_api_key)
 
-        # Convert prompt format to xAI format
-        messages = []
+        # Create chat with grok-4 model
+        chat = client.chat.create(model="grok-4")
+
+        # Add messages to chat using xAI's append method
         for msg in promptObj.prompt:
             if msg["role"] == "system":
-                messages.append(system(msg["content"]))
+                # Try to add system message, skip if not supported
+                try:
+                    chat.append(system(msg["content"]))
+                except:
+                    logger.debug("System messages not supported, skipping")
             elif msg["role"] == "user":
                 # Handle both text-only and multimodal messages
                 if isinstance(msg["content"], str):
-                    messages.append(user(msg["content"]))
+                    chat.append(user(msg["content"]))
                 elif isinstance(msg["content"], list):
                     # Multimodal message - extract text and image
                     text_content = ""
@@ -627,20 +633,18 @@ def _grok_chat(promptObj, image_data=None, image_url=None):
                             image_content = item["image_url"]["url"]
 
                     if image_content:
-                        if image_content.startswith("data:image"):
-                            # Base64 image - Grok can handle base64 images directly
-                            messages.append(user(text_content, image(image_content)))
-                        else:
-                            # URL image
-                            messages.append(user(text_content, image(image_content)))
+                        # Use the correct xAI format with detail parameter
+                        chat.append(user(
+                            text_content,
+                            image(image_url=image_content, detail="high")
+                        ))
                     else:
-                        messages.append(user(text_content))
+                        chat.append(user(text_content))
+            elif msg["role"] == "assistant":
+                # Skip assistant messages as they're handled automatically by xAI
+                pass
 
-        # Use grok-2-vision for image understanding, grok-3 for text-only
-        model = "grok-2-vision" if (image_data or image_url) else "grok-3"
-        chat = client.chat.create(model=model, messages=messages)
         response = chat.sample()
-
         return response.content
 
     except Exception as e:
