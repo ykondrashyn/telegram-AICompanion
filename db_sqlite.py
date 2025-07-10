@@ -75,12 +75,14 @@ class DBsqlite(object):
             self.connect()
             close = True
         try:
+            # Handle missing description attribute in newer telegram-bot versions
+            chat_description = getattr(message.chat, 'description', None)
             self.cursor.execute(
             """
             INSERT OR IGNORE INTO chats (id, tchat_id, name, nickname, description) \
                 values (?, ?, ?, ?, ?);
             """, \
-                (None, message.chat.id, message.chat.title, message.chat.username, message.chat.description))
+                (None, message.chat.id, message.chat.title, message.chat.username, chat_description))
         except sqlite3.Error as error:
             self.close()
             logging.debug('An error occurred:', error.args[0])

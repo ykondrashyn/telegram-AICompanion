@@ -301,8 +301,8 @@ Just reply to any of the bot's messages to get an AI answer</i>
     return usage
 
 def remove_offtopic(s):
-    s = re.sub('/offtopic@\S+ ', '', s)
-    s = re.sub('/offtopic ', '', s)
+    s = re.sub(r'/offtopic@\S+ ', '', s)
+    s = re.sub(r'/offtopic ', '', s)
     return s
 
 #########################################
@@ -566,6 +566,7 @@ def generic_chat(promptObj, user_text: str, user_id=None, image_data=None, image
     if image_data or image_url:
         # Create multimodal content
         user_content = create_image_message_content(user_text, image_data, image_url)
+        logger.info(f"Created multimodal content with image: {bool(image_data)}, url: {bool(image_url)}")
         # Add the multimodal message to prompt
         promptObj._prompt.append({"role": "user", "content": user_content})
         promptObj.calls += 1
@@ -627,9 +628,8 @@ def _grok_chat(promptObj, image_data=None, image_url=None):
 
                     if image_content:
                         if image_content.startswith("data:image"):
-                            # Base64 image - need to convert for Grok
-                            # For now, use text description
-                            messages.append(user(text_content))
+                            # Base64 image - Grok can handle base64 images directly
+                            messages.append(user(text_content, image(image_content)))
                         else:
                             # URL image
                             messages.append(user(text_content, image(image_content)))
@@ -672,13 +672,19 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
 
     # Get the highest resolution photo
     photo_id = await context.bot.getFile(message.photo[-1].file_id)
-    photo_url = photo_id.file_path
+    # Construct the full URL for the image
+    bot_token = os.environ['TELEGRAM_BOT_TOKEN']
+    photo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo_id.file_path}"
 
     # Download and encode the image
+    logger.info(f"Downloading image from: {photo_url}")
     image_data = await download_and_encode_image(photo_url)
     if not image_data:
+        logger.error("Failed to download and encode image")
         await message.reply_text("Sorry, I couldn't process the image.")
         return
+
+    logger.info(f"Successfully encoded image, size: {len(image_data)} characters")
 
     # Get user's caption if any
     msg_caption = message.caption or ""
