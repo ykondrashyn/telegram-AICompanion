@@ -1,0 +1,22 @@
+# Core dependencies
+python-telegram-bot>=20.0
+python-dotenv>=0.19.0
+
+# AI APIs
+xai-sdk>=1.0.0
+openai>=1.0.0
+
+# Web scraping and link preview
+requests>=2.25.0
+beautifulsoup4>=4.9.0
+linkpreview>=0.1.0
+lxml>=4.6.0
+
+# Media processing
+moviepy>=1.0.0
+
+# Database
+# No additional dependencies needed for SQLite (built into Python)
+
+# YouTube API (optional)
+google-api-python-client>=2.0.0

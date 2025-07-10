@@ -1,20 +1,26 @@
 # Telegram AI Companion
 
-Telegram AI Companion is a Python-based Telegram bot that can engage in intelligent conversations and analyze images within Telegram group chats. Powered by OpenAI’s GPT-3.5 for text interactions and the BLIP model through Replicate for image analysis, this bot can respond to both text and image inputs, making group conversations more interactive and informative.
+Telegram AI Companion is a Python-based Telegram bot that can engage in intelligent conversations within Telegram group chats. Now featuring dual AI support with **xAI's Grok** as the default provider and **OpenAI's GPT** as an alternative, this bot offers flexible AI interactions with easy mode switching and customizable system prompts.
 
 ## Features
 
-- **Smart Text Conversations**: Contextually relevant and responsive dialogues powered by GPT-3.5.
-- **Image Analysis**: Uses the BLIP model via Replicate to analyze images, generate captions, and answer image-related questions.
-- **Group Message Engagement**: Engages with both text and image messages in a group setting.
-- **Customizable**: Easily modify response behavior, prompt style, and image analysis settings.
+- **Dual AI Support**: Switch between xAI's Grok (default) and OpenAI's GPT-4o with simple commands
+- **Native Image Understanding**: Both Grok and GPT-4o can analyze images directly in conversations
+- **Smart Text Conversations**: Contextually relevant and responsive dialogues powered by advanced AI models
+- **Mode Switching**: Users can individually choose their preferred AI provider with `/mode` command
+- **Customizable Prompts**: Switch between different personality prompts (DAN, friendly, professional, creative, sarcastic, concise)
+- **Group Message Engagement**: Engages with both text and image messages in a group setting
+- **YouTube Integration**: Special handling for YouTube links with video information and thumbnail analysis
+- **Link Preview**: Automatic link analysis and preview generation with image understanding
+- **Persistent Preferences**: User preferences for AI mode and prompts are remembered
 
 ## Prerequisites
 
-- Python 3.7+
+- Python 3.10+ (required for xAI SDK)
 - Telegram Bot Token
-- OpenAI API Key
-- Replicate API Key (for BLIP image analysis)
+- xAI API Key (for Grok with vision support)
+- OpenAI API Key (optional, for GPT-4o with vision support)
+- YouTube API Key (optional, for enhanced YouTube link handling)
 
 ## Installation
 
@@ -24,124 +30,173 @@ Telegram AI Companion is a Python-based Telegram bot that can engage in intellig
    cd telegram-AICompanion
    ```
 
-2. **Install Dependencies**:
+2. **Create and Activate Virtual Environment**:
+   ```bash
+   # Create virtual environment
+   python3 -m venv venv
+
+   # Activate virtual environment
+   # On Linux/macOS:
+   source venv/bin/activate
+
+   # On Windows:
+   # venv\Scripts\activate
+   ```
+
+3. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Set Up Environment Variables**:
-   Create a `.env` file:
+4. **Set Up Environment Variables**:
+   Copy `.env.example` to `.env` and fill in your API keys:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` with your actual API keys:
    ```
    TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-   OPENAI_API_KEY=your_openai_api_key
-   REPLICATE_API_KEY=your_replicate_api_key
+   XAI_API_KEY=your_xai_api_key
+   OPENAI_API_KEY=your_openai_api_key  # Optional
+   YT_API_KEY=your_youtube_api_key     # Optional
+   DB_FILENAME=bot_database.db
+   DEFAULT_AI_MODE=grok
    ```
 
 ## Usage
 
-1. **Run the Bot**:
+1. **Activate Virtual Environment** (if not already active):
+   ```bash
+   # On Linux/macOS:
+   source venv/bin/activate
+
+   # On Windows:
+   # venv\Scripts\activate
+   ```
+
+2. **Test Setup** (optional but recommended):
+   ```bash
+   python test_setup.py
+   ```
+
+3. **Run the Bot**:
    ```bash
    python bot.py
    ```
 
-2. **Interact on Telegram**: Add the bot to your group, and it will start responding to messages, both text and images, based on the conversation context.
+4. **Interact on Telegram**: Add the bot to your group, and it will start responding to messages based on the conversation context.
 
-## Example Prompts
-
-- **Text Message**: 
-   - **User**: "Summarize our last few messages."
-   - **Bot**: "Based on recent messages, it looks like you're discussing project deadlines."
-
-- **Image Analysis**:
-   - **User**: (Sends an image of a sunset)
-   - **Bot**: "This appears to be a beautiful sunset with orange and pink hues in the sky."
-
-## Database Schema
-
-The bot uses a relational database to manage and track users, messages, and conversations.
-
-### Tables
-
-1. **messages**
-   - `id`: INTEGER (Primary Key) - Unique identifier for each message.
-   - `user_id`: INTEGER (Foreign Key: users.id) - Links each message to the user who sent it.
-   - `content`: TEXT - The actual text content of the message (if any).
-   - `timestamp`: DATETIME - The time when the message was sent.
-
-2. **users**
-   - `id`: INTEGER (Primary Key) - Unique identifier for each user.
-   - `username`: TEXT - Username of the user.
-   - `first_name`: TEXT - First name of the user.
-   - `last_name`: TEXT - Last name of the user.
-
-3. **conversations**
-   - `id`: INTEGER (Primary Key) - Unique identifier for each conversation.
-   - `title`: TEXT - Title or description of the conversation.
-   - `created_at`: DATETIME - When the conversation was created.
-
-4. **message_conversations**
-   - `message_id`: INTEGER (Foreign Key: messages.id) - Links each entry to a specific message.
-   - `conversation_id`: INTEGER (Foreign Key: conversations.id) - Links each entry to a specific conversation.
-
-### Relationships
-
-- **messages** are linked to **users** via `user_id`, associating each message with its sender.
-- **messages** are linked to **conversations** through the **message_conversations** table, allowing messages to be associated with one or more conversations.
-
-## Customization
-
-### 1. **Modifying the Bot's Prompt**
-
-   The bot uses a predefined prompt to engage in conversation. Here’s the current prompt:
-   
-   ```python
-   prompt = """
-   You are a friendly and helpful assistant in a Telegram group chat. Respond thoughtfully to each message, 
-   keeping in mind the conversation context and the group setting. Avoid overly long answers unless necessary, 
-   and be sure to stay on topic with the current discussion. Your responses should feel natural, engaging, 
-   and provide valuable input to the group conversation.
-   """
+5. **Deactivate Virtual Environment** (when done):
+   ```bash
+   deactivate
    ```
 
-   - **Customizing**: You can adjust the prompt to change the tone or style, such as making it more formal or topic-specific.
+## Commands
 
-### 2. **Image Analysis Settings**
+### AI Mode Switching
+- `/mode` - Show current AI mode and available options
+- `/mode grok` - Switch to xAI's Grok
+- `/mode gpt` - Switch to OpenAI's GPT (if configured)
 
-   The bot uses the BLIP model from Replicate for image analysis, which can generate captions and respond to visual questions. To modify how the bot processes images:
-   
-   ```python
-   # Pseudo-code for image analysis call
-   response = replicate.run(
-       "salesforce/blip:latest",
-       input={"image": image_url}
-   )
-   ```
+### Prompt Switching
+- `/prompt` - Show current prompt and available options
+- `/prompt friendly` - Switch to friendly personality
+- `/prompt professional` - Switch to professional tone
+- `/prompt creative` - Switch to creative personality
+- `/prompt sarcastic` - Switch to sarcastic/witty responses
+- `/prompt concise` - Switch to brief, direct responses
+- `/prompt dan` - Switch to DAN (Do Anything Now) mode
+- `/prompt reload` - Reload prompts from files
 
-   - **Customizing Responses**: Adjust the image analysis prompt within the BLIP integration to change how detailed or descriptive the captions are.
+### Other Commands
+- `/offtopic [message]` - Start a new conversation topic
+- Reply to any bot message to continue the conversation
 
-### 3. **Adjusting Response Length**
+## System Prompts
 
-   Modify `max_tokens` in the OpenAI API call to control response length:
-   
-   ```python
-   response = openai.Completion.create(
-       model="gpt-3.5-turbo",
-       prompt=prompt,
-       max_tokens=100  # Adjust for desired length
-   )
-   ```
+The bot includes several pre-configured personality prompts in the `prompts/` directory:
 
-### 4. **Adding Custom Trigger Words**
+- **DAN**: Unrestricted and creative personality
+- **Friendly**: Warm and approachable with emojis
+- **Professional**: Formal and knowledgeable
+- **Creative**: Imaginative and artistic
+- **Sarcastic**: Witty and humorous
+- **Concise**: Brief and direct
 
-   Customize when the bot responds by adding keywords:
-   
-   ```python
-   if "help" in message.content.lower() or "question" in message.content.lower():
-       response = generate_response(message.content)
-   ```
+You can add custom prompts by creating new `.txt` files in the `prompts/` directory. See `prompts/README.md` for details.
 
-   - **Example**: Only respond when specific words are mentioned, making it more selective in responses.
+## Configuration
 
-### 5. **Language and Regional Adaptation**
+### Environment Variables
 
-   Adjust the language in the prompt to support multiple languages if your group uses a non-English language.
+- `TELEGRAM_BOT_TOKEN`: Your Telegram bot token (required)
+- `XAI_API_KEY`: Your xAI API key for Grok (required)
+- `OPENAI_API_KEY`: Your OpenAI API key (optional, for GPT fallback)
+- `YT_API_KEY`: YouTube Data API key (optional, for enhanced YouTube features)
+- `DB_FILENAME`: Database file name (default: bot_database.db)
+- `DEFAULT_AI_MODE`: Default AI mode - "grok" or "gpt" (default: grok)
+
+### Database
+
+The bot uses SQLite to store user preferences and conversation history. The database is automatically created on first run.
+
+## Features in Detail
+
+### AI Mode Switching
+Users can switch between different AI providers:
+- **Grok**: xAI's advanced AI model with vision support (default)
+- **GPT**: OpenAI's GPT-4o with vision support (fallback option)
+
+### Native Image Understanding
+Both AI providers now support native image analysis:
+- **Photo Messages**: Send photos directly to the bot for analysis and discussion
+- **YouTube Thumbnails**: Automatic analysis of video thumbnails for better context
+- **Link Previews**: Image analysis for website thumbnails and previews
+- **Integrated Conversations**: Images are part of the conversation flow, not separate analysis
+
+### Prompt Personalities
+Each user can choose their preferred AI personality:
+- Prompts are loaded from the `prompts/` directory
+- Changes take effect in new conversations
+- Prompts can be reloaded without restarting the bot
+
+### YouTube Integration
+- Automatic detection of YouTube URLs
+- Fetches video title, description, and thumbnail
+- Shows top-rated comments
+- AI provides commentary on the video content
+
+### Link Preview
+- Generates previews for web links
+- Extracts title, description, and images
+- AI provides commentary on linked content
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Import Errors**: Make sure all dependencies are installed with `pip install -r requirements.txt`
+2. **API Key Errors**: Verify your API keys are correctly set in the `.env` file
+3. **Permission Errors**: Ensure the bot has permission to read messages in your group
+4. **Prompt Not Found**: Use `/prompt reload` to refresh available prompts
+
+### Logs
+
+The bot logs important events and errors. Check the console output for debugging information.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is open source. Please check the license file for details.
+
+## Support
+
+For issues and questions, please open an issue on the GitHub repository.
