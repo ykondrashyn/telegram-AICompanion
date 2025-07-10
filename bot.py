@@ -676,9 +676,13 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
 
     # Get the highest resolution photo
     photo_id = await context.bot.getFile(message.photo[-1].file_id)
-    # Construct the full URL for the image
-    bot_token = os.environ['TELEGRAM_BOT_TOKEN']
-    photo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo_id.file_path}"
+    # Use the file_path directly as it's already a full URL in newer telegram-bot versions
+    photo_url = photo_id.file_path
+
+    # If file_path is relative, construct the full URL
+    if not photo_url.startswith('http'):
+        bot_token = os.environ['TELEGRAM_BOT_TOKEN']
+        photo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo_id.file_path}"
 
     # Download and encode the image
     logger.info(f"Downloading image from: {photo_url}")
