@@ -24,13 +24,19 @@ class DBsqlite(object):
         self.connection.set_trace_callback(print)
         self.connected = True
 
-    def close(self): 
-        self.connection.commit()
-        self.connection.close()
-        print("Closed")
-        self.connected = False
+    def close(self):
+        try:
+            if self.connected and self.connection:
+                self.connection.commit()
+                self.connection.close()
+                print("Closed")
+        except sqlite3.Error as e:
+            logging.error(f"Error closing database connection: {e}")
+        finally:
+            self.connected = False
 
     def register_message(self, message, message_sent):
+        close = False
         if not self.connected:
             self.connect()
             close = True
@@ -41,16 +47,16 @@ class DBsqlite(object):
                 ((?), (?), (SELECT id FROM chats WHERE tchat_id=?), \
                 (SELECT id FROM users WHERE tuser_id=?), (?));
             """, \
-                (None, message_sent.message_id, message.chat.id, message.from_user.id, message.forward_from)).fetchall()
+                (None, message_sent.message_id, message.chat.id, message.from_user.id, message.forward_from))
         except sqlite3.Error as error:
-            self.close()
-            logging.debug('Terrible error has occurred:', error)
-        # close connection if one was opened
-        if close:
-            self.close()   
+            logging.error(f'Database error in register_message: {error}')
+        finally:
+            # close connection if one was opened
+            if close:
+                self.close()
 
     def register_user(self, user):
-        
+        close = False
         if not self.connected:
             self.connect()
             close = True
@@ -60,13 +66,13 @@ class DBsqlite(object):
             INSERT OR IGNORE INTO users (id, tuser_id, nickname, fname, lname) \
                 values (?, ?, ?, ?, ?)
             """, \
-                (None, user.id, user.username, user.first_name, user.last_name)).fetchall()
+                (None, user.id, user.username, user.first_name, user.last_name))
         except sqlite3.Error as error:
-            self.close()
-            logging.debug('An error occurred:', error.args[0])
-        # close connection if one was opened
-        if close:
-            self.close()
+            logging.error(f'Database error in register_user: {error}')
+        finally:
+            # close connection if one was opened
+            if close:
+                self.close()
 
 
     def register_chat(self, message):
@@ -91,7 +97,8 @@ class DBsqlite(object):
             self.close()   
     
     def check_user(self, message):
-        
+        data = []
+        close = False
         if not self.connected:
             self.connect()
             close = True
@@ -109,12 +116,13 @@ class DBsqlite(object):
             """, \
                 (message.from_user.id, message.chat.id)).fetchall()
         except sqlite3.Error as error:
-            self.close()
-            logging.debug('An error occurred:', error.args[0])
-        # close connection if one was opened
-        if close:
-            self.close()
-        return data 
+            logging.error(f'Database error in check_user: {error}')
+            data = []  # Return empty data on error
+        finally:
+            # close connection if one was opened
+            if close:
+                self.close()
+        return data
 
     def execute(self, statement, args=None):
         queries = []
