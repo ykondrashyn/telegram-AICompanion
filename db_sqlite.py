@@ -47,7 +47,7 @@ class DBsqlite(object):
                 ((?), (?), (SELECT id FROM chats WHERE tchat_id=?), \
                 (SELECT id FROM users WHERE tuser_id=?), (?));
             """, \
-                (None, message_sent.message_id, message.chat.id, message.from_user.id, message.forward_from))
+                (None, message_sent.message_id, message.chat.id, message.from_user.id, None))
         except sqlite3.Error as error:
             logging.error(f'Database error in register_message: {error}')
         finally:

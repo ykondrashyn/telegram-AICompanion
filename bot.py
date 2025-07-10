@@ -751,11 +751,9 @@ def is_youtube_url(url):
 
 async def url_msg_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
-    sender = message.from_user.username
     text = message.text
     url = extract_first_url(text)
     body = text.replace(url, '')
-    forwarded_from = message.forward_from.username if message.forward_from else None
 
     # start a new conversation thread
     user_id = message.from_user.id if message.from_user else None
