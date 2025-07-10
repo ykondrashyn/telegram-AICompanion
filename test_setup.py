@@ -47,7 +47,6 @@ def test_dependencies():
         ('requests', 'requests'),
         ('bs4', 'beautifulsoup4'),
         ('linkpreview', 'linkpreview'),
-        ('moviepy.editor', 'moviepy'),
         ('dotenv', 'python-dotenv')
     ]
     

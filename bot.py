@@ -24,7 +24,6 @@ from telegram.ext import (ApplicationBuilder,
 
 
 from bs4 import BeautifulSoup
-from moviepy.editor import AudioFileClip
 
 # Import xAI SDK
 try:

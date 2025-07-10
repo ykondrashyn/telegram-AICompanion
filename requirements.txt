@@ -12,8 +12,7 @@ beautifulsoup4>=4.9.0
 linkpreview>=0.1.0
 lxml>=4.6.0
 
-# Media processing
-moviepy>=1.0.0
+# Media processing (removed moviepy - not used)
 
 # Database
 # No additional dependencies needed for SQLite (built into Python)
