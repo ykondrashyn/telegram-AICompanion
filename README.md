@@ -192,8 +192,14 @@ The bot logs important events and errors. Check the console output for debugging
 ## Testing
 
 Unit tests live in the `tests/` directory and use `pytest` with
+<<<<<<< HEAD
 `pytest-asyncio` for asynchronous handlers. Install the extra dependencies and
 run the suite from the project root:
+=======
+`pytest-asyncio` for asynchronous handlers. They cover bot commands,
+handling of images, new members joining, reply scenarios and more. Install the
+extra dependencies and run the suite from the project root:
+>>>>>>> 7f8df82 (Fix private chat filter and clarify tests)
 
 ```bash
 pip install -r requirements.txt pytest pytest-asyncio

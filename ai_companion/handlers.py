@@ -41,6 +41,8 @@ async def offtopic_command_handler(update: Update, context: CallbackContext) -> 
 
 async def mode_command_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
+    if not message.from_user:
+        return
     user_id = message.from_user.id
     args = context.args
     if not args:
@@ -60,6 +62,8 @@ async def mode_command_handler(update: Update, context: CallbackContext) -> None
 
 async def prompt_command_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
+    if not message.from_user:
+        return
     user_id = message.from_user.id
     args = context.args
     if not args:
@@ -87,6 +91,8 @@ async def ignore_private(update: Update, context: CallbackContext) -> None:
 
 async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
+    if not message.from_user:
+        return  # Skip if no user information
     user_id = message.from_user.id
     if message.reply_to_message.from_user.id == context.bot.id:
         if not db.check_user(message):
@@ -104,13 +110,15 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
 
 async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
+    if not message.from_user:
+        return
     user_id = message.from_user.id
     photo = await context.bot.getFile(message.photo[-1].file_id)
     photo_url = photo.file_path
     if not photo_url.startswith('http'):
         bot_token = context.bot.token
         photo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo.file_path}"
-    image_data = await download_and_encode_image(photo_url)
+    image_data = download_and_encode_image(photo_url)
     msg_caption = message.caption or ""
     caption_urls = ''
     if msg_caption:
@@ -139,6 +147,8 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
 
 async def url_msg_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
+    if not message.from_user:
+        return
     text = message.text
     url = extract_first_url(text)
     body = text.replace(url, '')
