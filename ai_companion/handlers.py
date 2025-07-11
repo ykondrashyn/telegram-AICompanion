@@ -102,11 +102,17 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
             new_user_greeting = extract_dan(generic_chat(service_prompt, new_user_prompt, user_id, ai_mode=get_user_ai_mode(user_id)))
             usage = f"<span class=\"tg-spoiler\">{print_usage()}</span>"
             await message.reply_text(f"{new_user_greeting}\n\n{usage}", parse_mode=ParseMode.HTML)
-    response = extract_dan(generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id)))
-    db.register_user(message.from_user)
-    db.register_message(message, message)
-    reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
-    global_prompt.conversation.add_message(reply)
+
+        # Always respond to the actual message content
+        try:
+            response = extract_dan(generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id)))
+            db.register_user(message.from_user)
+            db.register_message(message, message)
+            reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
+            global_prompt.conversation.add_message(reply)
+        except Exception as e:
+            logger.error(f"Error in bot reply: {e}")
+            await message.reply_text("Sorry, I'm experiencing technical difficulties. Please try again later.")
 
 async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
@@ -141,9 +147,13 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
     if caption_urls:
         photo_prompt += f" They also shared these links: {caption_urls}"
     photo_prompt += " Please look at the image and respond with your thoughts about it."
-    response = extract_dan(generic_chat(global_prompt, photo_prompt, user_id, image_data=image_data, ai_mode=get_user_ai_mode(user_id)))
-    reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
-    global_prompt.conversation.add_message(reply)
+    try:
+        response = extract_dan(generic_chat(global_prompt, photo_prompt, user_id, image_data=image_data, ai_mode=get_user_ai_mode(user_id)))
+        reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
+        global_prompt.conversation.add_message(reply)
+    except Exception as e:
+        logger.error(f"Error processing photo: {e}")
+        await message.reply_text("Sorry, I couldn't process your image right now. Please try again later.")
 
 async def url_msg_handler(update: Update, context: CallbackContext) -> None:
     message = update.message

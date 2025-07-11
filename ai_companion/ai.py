@@ -86,8 +86,22 @@ def generic_chat(promptObj, user_text, user_id=None, image_data=None, image_url=
             ai_reply = _grok_chat(promptObj)
         except Exception as e:
             logger.error(f"Grok error: {e}")
-            ai_reply = _openai_chat(promptObj)
+            if openai_client and OPENAI_API_KEY and OPENAI_API_KEY != "your_openai_api_key_here":
+                try:
+                    ai_reply = _openai_chat(promptObj)
+                except Exception as openai_e:
+                    logger.error(f"OpenAI fallback error: {openai_e}")
+                    ai_reply = "Sorry, I'm experiencing technical difficulties with both AI services. Please try again later."
+            else:
+                ai_reply = "Sorry, I'm experiencing technical difficulties. Please try again later."
     else:
-        ai_reply = _openai_chat(promptObj)
+        if openai_client and OPENAI_API_KEY and OPENAI_API_KEY != "your_openai_api_key_here":
+            try:
+                ai_reply = _openai_chat(promptObj)
+            except Exception as e:
+                logger.error(f"OpenAI error: {e}")
+                ai_reply = "Sorry, I'm experiencing technical difficulties. Please try again later."
+        else:
+            ai_reply = "Sorry, OpenAI is not properly configured. Please check your API key."
     promptObj.save_feedback(ai_reply)
     return ai_reply
