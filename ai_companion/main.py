@@ -24,7 +24,7 @@ def run():
     application.add_handler(MessageHandler(filters.REPLY, bot_reply_handler))
     application.add_handler(MessageHandler(filters.Entity("url"), url_msg_handler))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, joined))
-    application.add_handler(MessageHandler(filters.UpdateType.MESSAGE & (~filters.ALL), ignore_private))
+    application.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, ignore_private))
     application.run_polling()
 
 if __name__ == "__main__":
