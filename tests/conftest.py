@@ -25,6 +25,7 @@ def create_user(user_id=123, is_bot=False, first_name="User", username="user"):
 def create_chat(chat_id=-100, title="Test Group", chat_type="group"):
     if chat_type == "private":
         return Chat(chat_id, "private", first_name=title)
+
     return Chat(chat_id, "group", title=title)
 
 def create_bot_message(bot, message_id=999, chat_id=-100):
