@@ -43,3 +43,8 @@ CREATE TABLE IF NOT EXISTS "chats" (
         "nickname"      TEXT,
         "description"   TEXT
 );
+
+-- Indexes to speed up lookups
+CREATE INDEX IF NOT EXISTS idx_users_tuser_id ON users(tuser_id);
+CREATE INDEX IF NOT EXISTS idx_chats_tchat_id ON chats(tchat_id);
+CREATE INDEX IF NOT EXISTS idx_messages_user_chat ON messages(user_id, chat_id);
