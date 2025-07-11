@@ -189,6 +189,20 @@ Each user can choose their preferred AI personality:
 
 The bot logs important events and errors. Check the console output for debugging information.
 
+## Testing
+
+Unit tests live in the `tests/` directory and use `pytest` with
+`pytest-asyncio` for asynchronous handlers. They cover bot commands,
+handling of images, new members joining, reply scenarios and more. Install the
+extra dependencies and run the suite from the project root:
+
+```bash
+pip install -r requirements.txt pytest pytest-asyncio
+pytest -q
+```
+
+See `tests/README.md` for a description of each test.
+
 ## Contributing
 
 1. Fork the repository
