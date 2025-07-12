@@ -6,7 +6,7 @@ from telegram.constants import ParseMode
 from .prompts import PromptManager, ServicePrompt, get_user_system_prompt, get_user_ai_mode, set_user_ai_mode, get_user_prompt, set_user_prompt, prompt_loader
 from .prompts import user_ai_modes, user_prompts
 from .ai import generic_chat, download_and_encode_image
-from .utils import extract_dan, print_usage, remove_offtopic, generate_link_preview, find_url, remove_links, extract_first_url, is_youtube_url, get_video_info_api, get_highest_rated_comments
+from .utils import extract_dan, print_usage, remove_offtopic, generate_link_preview, find_url, remove_links, extract_first_url, is_youtube_url, get_video_info_api, get_highest_rated_comments, extract_video_id
 from .db import DBsqlite
 from .config import DB_FILENAME, DEFAULT_AI_MODE
 
@@ -132,7 +132,14 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
         return  # Skip if no user information
     user_id = message.from_user.id
     if message.reply_to_message.from_user.id == context.bot.id:
-        if not db.check_user(message):
+        # Check if this is a new user (hasn't interacted before)
+        is_new_user = not db.check_user(message)
+
+        if is_new_user:
+            # Register the user first so they won't be considered new again
+            db.register_user(message.from_user)
+
+            # Send new user greeting
             new_user_prompt = "You're in Telegram chat, where a user has interacted with you for the first time, write a greeting message to him."
             if message.from_user.first_name:
                 new_user_prompt += f" First name: {message.from_user.first_name}."
@@ -143,7 +150,12 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
         # Always respond to the actual message content
         try:
             response = extract_dan(generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id)))
-            db.register_user(message.from_user)
+
+            # Register user if not already done (for non-new users)
+            if not is_new_user:
+                db.register_user(message.from_user)
+
+            # Register this message interaction
             db.register_message(message, message)
             reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
             global_prompt.conversation.add_message(reply)
@@ -186,6 +198,11 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
     photo_prompt += " Please look at the image and respond with your thoughts about it."
     try:
         response = extract_dan(generic_chat(global_prompt, photo_prompt, user_id, image_data=image_data, ai_mode=get_user_ai_mode(user_id)))
+
+        # Register user and message
+        db.register_user(message.from_user)
+        db.register_message(message, message)
+
         reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
         global_prompt.conversation.add_message(reply)
     except Exception as e:
@@ -212,6 +229,11 @@ async def url_msg_handler(update: Update, context: CallbackContext) -> None:
                      f" User's note: {body} What do you think about it?")
         thumbnail_url = yt_info.get('thumbnail')
         response = extract_dan(generic_chat(global_prompt, yt_prompt, user_id, image_url=thumbnail_url, ai_mode=get_user_ai_mode(user_id)))
+
+        # Register user and message
+        db.register_user(message.from_user)
+        db.register_message(message, message)
+
         await message.reply_text(response, parse_mode=ParseMode.HTML)
         comments_list = get_highest_rated_comments(video_id)
         comments = "\n".join([f"{i+1}: \"{c}\"" for i, c in enumerate(comments_list)])
@@ -223,4 +245,9 @@ async def url_msg_handler(update: Update, context: CallbackContext) -> None:
                       f" Description: {info['description']}. User's note: {body} What do you think about it?")
         thumbnail_url = info.get('thumbnail')
         response = extract_dan(generic_chat(global_prompt, url_prompt, user_id, image_url=thumbnail_url, ai_mode=get_user_ai_mode(user_id)))
+
+        # Register user and message
+        db.register_user(message.from_user)
+        db.register_message(message, message)
+
         await message.reply_text(response, parse_mode=ParseMode.HTML)
