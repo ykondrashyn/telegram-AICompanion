@@ -12,13 +12,37 @@ from .config import DB_FILENAME, DEFAULT_AI_MODE
 
 logger = logging.getLogger(__name__)
 
-# Read database schema and initialize database
+# Initialize database with schema if needed
 import os
-schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db.schema')
-with open(schema_path, 'r') as f:
-    schema = f.read()
+import sqlite3
 
-db = DBsqlite(DB_FILENAME, schema)
+def init_database():
+    """Initialize database with schema if tables don't exist."""
+    # Check if database exists and has tables
+    try:
+        conn = sqlite3.connect(DB_FILENAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        tables_exist = cursor.fetchone() is not None
+        conn.close()
+
+        if not tables_exist:
+            # Database is empty, load schema
+            schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db.schema')
+            with open(schema_path, 'r') as f:
+                schema = f.read()
+            return DBsqlite(DB_FILENAME, schema)
+        else:
+            # Database exists, just connect
+            return DBsqlite(DB_FILENAME)
+    except Exception as e:
+        # If anything goes wrong, try to initialize with schema
+        schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db.schema')
+        with open(schema_path, 'r') as f:
+            schema = f.read()
+        return DBsqlite(DB_FILENAME, schema)
+
+db = init_database()
 
 dan_prompt = [{"role": "system", "content": prompt_loader.get_prompt('dan') or 'You are a friendly assistant'}]
 

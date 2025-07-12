@@ -1,4 +1,4 @@
-CREATE TABLE "reactions" (
+CREATE TABLE IF NOT EXISTS "reactions" (
 	"id"	INTEGER PRIMARY KEY AUTOINCREMENT,
 	"value"	INTEGER,
 	"description"	INTEGER
