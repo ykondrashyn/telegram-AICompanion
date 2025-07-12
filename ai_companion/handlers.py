@@ -13,7 +13,9 @@ from .config import DB_FILENAME, DEFAULT_AI_MODE
 logger = logging.getLogger(__name__)
 
 # Read database schema and initialize database
-with open('db.schema', 'r') as f:
+import os
+schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db.schema')
+with open(schema_path, 'r') as f:
     schema = f.read()
 
 db = DBsqlite(DB_FILENAME, schema)
