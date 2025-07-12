@@ -12,7 +12,8 @@ from .handlers import (
     photo_msg_handler,
     bot_reply_handler,
     url_msg_handler,
-    ignore_private
+    ignore_private,
+    mention_handler
 )
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -56,9 +57,11 @@ def run():
             application.add_handler(CommandHandler("offtopic", offtopic_command_handler))
             application.add_handler(CommandHandler("mode", mode_command_handler))
             application.add_handler(CommandHandler("prompt", prompt_command_handler))
-            application.add_handler(MessageHandler(filters.PHOTO, photo_msg_handler))
-            application.add_handler(MessageHandler(filters.REPLY, bot_reply_handler))
-            application.add_handler(MessageHandler(filters.Entity("url"), url_msg_handler))
+            # Only handle messages from actual users (not forwarded from channels)
+            application.add_handler(MessageHandler(filters.PHOTO & filters.User(), photo_msg_handler))
+            application.add_handler(MessageHandler(filters.REPLY & filters.User(), bot_reply_handler))
+            application.add_handler(MessageHandler(filters.Entity("url") & filters.User(), url_msg_handler))
+            application.add_handler(MessageHandler(filters.Entity("mention") & filters.User(), mention_handler))
             application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, joined))
             application.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, ignore_private))
 

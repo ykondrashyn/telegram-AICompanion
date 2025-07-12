@@ -12,7 +12,11 @@ from .config import DB_FILENAME, DEFAULT_AI_MODE
 
 logger = logging.getLogger(__name__)
 
-db = DBsqlite(DB_FILENAME, "PRAGMA foreign_keys = ON;")
+# Read database schema and initialize database
+with open('db.schema', 'r') as f:
+    schema = f.read()
+
+db = DBsqlite(DB_FILENAME, schema)
 
 dan_prompt = [{"role": "system", "content": prompt_loader.get_prompt('dan') or 'You are a friendly assistant'}]
 
@@ -88,6 +92,37 @@ async def prompt_command_handler(update: Update, context: CallbackContext) -> No
 async def ignore_private(update: Update, context: CallbackContext) -> None:
     if update.message.chat_id > 0:
         await update.message.reply_text('I only respond in group chats!')
+
+async def mention_handler(update: Update, context: CallbackContext) -> None:
+    """Handle messages that mention the bot."""
+    message = update.message
+    if not message.from_user:
+        return
+
+    user_id = message.from_user.id
+
+    # Check if the bot is mentioned in the message
+    bot_username = context.bot.username
+    if f"@{bot_username}" in message.text or message.text.startswith(f"@{bot_username}"):
+        # Remove the mention from the text
+        text = message.text.replace(f"@{bot_username}", "").strip()
+        if not text:
+            text = "Hello!"
+
+        try:
+            global_prompt.reset()
+            user_system_prompt = get_user_system_prompt(user_id)
+            global_prompt.initial_prompt = user_system_prompt
+            global_prompt._prompt = user_system_prompt.copy()
+
+            response = extract_dan(generic_chat(global_prompt, text, user_id, ai_mode=get_user_ai_mode(user_id)))
+            db.register_user(message.from_user)
+            db.register_message(message, message)
+            reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
+            global_prompt.conversation.add_message(reply)
+        except Exception as e:
+            logger.error(f"Error in mention handler: {e}")
+            await message.reply_text("Sorry, I'm experiencing technical difficulties. Please try again later.")
 
 async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
