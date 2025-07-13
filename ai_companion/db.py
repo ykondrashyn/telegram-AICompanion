@@ -131,3 +131,69 @@ class DBsqlite:
             logging.debug("An error occurred: %s", error)
             logging.debug("For the statement: %s", statement)
             return None
+
+    def get_all_preferences(self):
+        """Return a dict of user preferences keyed by Telegram user id."""
+        self.connect()
+        try:
+            rows = self.cursor.execute(
+                "SELECT u.tuser_id as tuser_id, p.ai_mode, p.system_prompt "
+                "FROM user_preferences p JOIN users u ON p.user_id=u.id"
+            ).fetchall()
+            prefs = {}
+            for row in rows:
+                prefs[row["tuser_id"]] = {
+                    "ai_mode": row["ai_mode"],
+                    "system_prompt": row["system_prompt"],
+                }
+            return prefs
+        except sqlite3.Error as error:
+            logging.error("Database error in get_all_preferences: %s", error)
+            return {}
+
+    def save_user_ai_mode(self, tuser_id: int, mode: str) -> None:
+        """Persist user's preferred AI mode."""
+        self.connect()
+        try:
+            row = self.cursor.execute(
+                "SELECT id FROM users WHERE tuser_id=?",
+                (tuser_id,),
+            ).fetchone()
+            if not row:
+                return
+            user_id = row["id"]
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO user_preferences (user_id, ai_mode, system_prompt) VALUES (?, ?, 'dan')",
+                (user_id, mode),
+            )
+            self.cursor.execute(
+                "UPDATE user_preferences SET ai_mode=? WHERE user_id=?",
+                (mode, user_id),
+            )
+            self.connection.commit()
+        except sqlite3.Error as error:
+            logging.error("Database error in save_user_ai_mode: %s", error)
+
+    def save_user_prompt(self, tuser_id: int, prompt_name: str) -> None:
+        """Persist user's preferred system prompt."""
+        self.connect()
+        try:
+            row = self.cursor.execute(
+                "SELECT id FROM users WHERE tuser_id=?",
+                (tuser_id,),
+            ).fetchone()
+            if not row:
+                return
+            user_id = row["id"]
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO user_preferences (user_id, ai_mode, system_prompt) VALUES (?, 'grok', ?)",
+                (user_id, prompt_name),
+            )
+            self.cursor.execute(
+                "UPDATE user_preferences SET system_prompt=? WHERE user_id=?",
+                (prompt_name, user_id),
+            )
+            self.connection.commit()
+        except sqlite3.Error as error:
+            logging.error("Database error in save_user_prompt: %s", error)
+

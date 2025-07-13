@@ -43,6 +43,11 @@ def init_database():
         return DBsqlite(DB_FILENAME, schema)
 
 db = init_database()
+try:
+    from .prompts import set_db_instance
+    set_db_instance(db)
+except Exception:
+    logger.debug("Could not attach DB instance to prompts")
 
 dan_prompt = [{"role": "system", "content": prompt_loader.get_prompt('dan') or 'You are a friendly assistant'}]
 
@@ -76,8 +81,9 @@ async def mode_command_handler(update: Update, context: CallbackContext) -> None
     user_id = message.from_user.id
     args = context.args
     if not args:
+        from .ai import openai_client
         current_mode = get_user_ai_mode(user_id)
-        available_modes = "grok" + (", gpt" if user_ai_modes else "")
+        available_modes = "grok" + (", gpt" if openai_client else "")
         await message.reply_text(
             f"🤖 <b>Current AI Mode:</b> {current_mode.upper()}\n"
             f"📋 <b>Available modes:</b> {available_modes}",
@@ -157,45 +163,59 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
 
     user_id = message.from_user.id
 
-    # Check if this is a reply to the bot
-    if not message.reply_to_message:
-        return
-
-    if not message.reply_to_message.from_user:
-        return
-
-    if message.reply_to_message.from_user.id != context.bot.id:
-        return
-        # Check if this is a new user (hasn't interacted before)
-        is_new_user = not db.check_user(message)
-
-        if is_new_user:
-            # Register the user first so they won't be considered new again
-            db.register_user(message.from_user)
-
-            # Send new user greeting
-            new_user_prompt = "You're in Telegram chat, where a user has interacted with you for the first time, write a greeting message to him."
-            if message.from_user.first_name:
-                new_user_prompt += f" First name: {message.from_user.first_name}."
-            new_user_greeting = extract_dan(generic_chat(service_prompt, new_user_prompt, user_id, ai_mode=get_user_ai_mode(user_id)))
-            usage = f"<span class=\"tg-spoiler\">{print_usage()}</span>"
-            await message.reply_text(f"{new_user_greeting}\n\n{usage}", parse_mode=ParseMode.HTML)
-
-        # Always respond to the actual message content
+    # If the reply is not directed at the bot, simply respond without greeting
+    if not (
+        message.reply_to_message
+        and message.reply_to_message.from_user
+        and message.reply_to_message.from_user.id == context.bot.id
+    ):
         try:
-            response = extract_dan(generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id)))
-
-            # Register user if not already done (for non-new users)
-            if not is_new_user:
-                db.register_user(message.from_user)
-
-            # Register this message interaction
+            response = extract_dan(
+                generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id))
+            )
             db.register_message(message, message)
             reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
             global_prompt.conversation.add_message(reply)
         except Exception as e:
             logger.error(f"Error in bot reply: {e}")
-            await message.reply_text("Sorry, I'm experiencing technical difficulties. Please try again later.")
+            await message.reply_text(
+                "Sorry, I'm experiencing technical difficulties. Please try again later."
+            )
+        return
+
+    # Determine if this user interacted before in this chat
+    is_new_user = not db.check_user(message)
+
+    if is_new_user:
+        db.register_user(message.from_user)
+        new_user_prompt = (
+            "You're in Telegram chat, where a user has interacted with you for the first time, write a greeting message to him."
+        )
+        if message.from_user.first_name:
+            new_user_prompt += f" First name: {message.from_user.first_name}."
+        new_user_greeting = extract_dan(
+            generic_chat(service_prompt, new_user_prompt, user_id, ai_mode=get_user_ai_mode(user_id))
+        )
+        usage = f"<span class=\"tg-spoiler\">{print_usage()}</span>"
+        await message.reply_text(f"{new_user_greeting}\n\n{usage}", parse_mode=ParseMode.HTML)
+
+    # Respond to the actual message content
+    try:
+        response = extract_dan(
+            generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id))
+        )
+
+        if not is_new_user:
+            db.register_user(message.from_user)
+
+        db.register_message(message, message)
+        reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
+        global_prompt.conversation.add_message(reply)
+    except Exception as e:
+        logger.error(f"Error in bot reply: {e}")
+        await message.reply_text(
+            "Sorry, I'm experiencing technical difficulties. Please try again later."
+        )
 
 async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
