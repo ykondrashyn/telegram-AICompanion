@@ -197,3 +197,66 @@ class DBsqlite:
         except sqlite3.Error as error:
             logging.error("Database error in save_user_prompt: %s", error)
 
+    MAX_HISTORY = 50
+
+    def add_history(self, tuser_id: int, role: str, content: str, important: bool = False) -> None:
+        """Store a conversation turn for a user and maintain a circular buffer."""
+        self.connect()
+        try:
+            row = self.cursor.execute(
+                "SELECT id FROM users WHERE tuser_id=?",
+                (tuser_id,),
+            ).fetchone()
+            if not row:
+                return
+            user_id = row["id"]
+            self.cursor.execute(
+                "INSERT INTO conversation_history (user_id, role, content, important) VALUES (?, ?, ?, ?)",
+                (user_id, role, content, int(important)),
+            )
+            # trim non-important history to MAX_HISTORY entries
+            oldest_kept = self.cursor.execute(
+                "SELECT id FROM conversation_history WHERE user_id=? AND important=0 ORDER BY id DESC LIMIT 1 OFFSET ?",
+                (user_id, self.MAX_HISTORY - 1),
+            ).fetchone()
+            if oldest_kept:
+                self.cursor.execute(
+                    "DELETE FROM conversation_history WHERE user_id=? AND important=0 AND id < ?",
+                    (user_id, oldest_kept["id"]),
+                )
+            self.connection.commit()
+        except sqlite3.Error as exc:
+            logging.error("Database error in add_history: %s", exc)
+
+    def mark_history_important(self, history_id: int) -> None:
+        """Mark a conversation history entry as important."""
+        self.connect()
+        try:
+            self.cursor.execute(
+                "UPDATE conversation_history SET important=1 WHERE id=?",
+                (history_id,),
+            )
+            self.connection.commit()
+        except sqlite3.Error as exc:
+            logging.error("Database error in mark_history_important: %s", exc)
+
+    def get_history(self, tuser_id: int, limit: int = 10):
+        """Return the last ``limit`` conversation messages for a user."""
+        self.connect()
+        try:
+            row = self.cursor.execute(
+                "SELECT id FROM users WHERE tuser_id=?",
+                (tuser_id,),
+            ).fetchone()
+            if not row:
+                return []
+            user_id = row["id"]
+            rows = self.cursor.execute(
+                "SELECT role, content FROM conversation_history WHERE user_id=? ORDER BY id DESC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+            return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
+        except sqlite3.Error as exc:
+            logging.error("Database error in get_history: %s", exc)
+            return []
+

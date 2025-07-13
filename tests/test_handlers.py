@@ -13,6 +13,12 @@ class DummyDB:
         self.register_message_called = False
         self.checked_user = False
 
+    def add_history(self, uid, role, content, important=False):
+        pass
+
+    def get_history(self, uid, limit=10):
+        return []
+
     def register_chat(self, message):
         self.register_chat_called = True
 

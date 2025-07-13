@@ -52,5 +52,5 @@ You can edit any of the existing prompt files to customize the bot's behavior. A
 
 - Each user can have their own prompt preference
 - Prompt changes take effect in new conversations
-- The default prompt is set to "dan" but can be changed in the environment variables
+- The default prompt is set to "concise" but can be changed in the environment variables
 - Prompts are loaded at startup and can be reloaded without restarting the bot

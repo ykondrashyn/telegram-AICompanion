@@ -54,3 +54,14 @@ CREATE TABLE IF NOT EXISTS "user_preferences" (
         "system_prompt" TEXT DEFAULT 'dan',
         FOREIGN KEY("user_id") REFERENCES "users"("id")
 );
+
+CREATE TABLE IF NOT EXISTS "conversation_history" (
+        "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+        "user_id" INTEGER,
+        "role" TEXT,
+        "content" TEXT,
+        "important" INTEGER DEFAULT 0,
+        "timestamp" DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY("user_id") REFERENCES "users"("id")
+);
+CREATE INDEX IF NOT EXISTS idx_history_user_id ON conversation_history(user_id);
