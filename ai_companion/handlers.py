@@ -3,7 +3,17 @@ from telegram import Update
 from telegram.ext import CallbackContext
 from telegram.constants import ParseMode
 
-from .prompts import PromptManager, ServicePrompt, get_user_system_prompt, get_user_ai_mode, set_user_ai_mode, get_user_prompt, set_user_prompt, prompt_loader
+from .prompts import (
+    PromptManager,
+    ServicePrompt,
+    get_user_system_prompt,
+    get_user_ai_mode,
+    set_user_ai_mode,
+    get_user_prompt,
+    set_user_prompt,
+    prompt_loader,
+    get_prompt_with_history,
+)
 from .prompts import user_ai_modes, user_prompts
 from .ai import generic_chat, download_and_encode_image
 from .utils import extract_dan, print_usage, remove_offtopic, generate_link_preview, find_url, remove_links, extract_first_url, is_youtube_url, get_video_info_api, get_highest_rated_comments, extract_video_id
@@ -66,12 +76,17 @@ async def offtopic_command_handler(update: Update, context: CallbackContext) -> 
     user_id = message.from_user.id if message.from_user else None
     global_prompt.reset()
     if user_id:
-        user_system_prompt = get_user_system_prompt(user_id)
-        global_prompt.initial_prompt = user_system_prompt
-        global_prompt._prompt = user_system_prompt.copy()
+        history_prompt = get_prompt_with_history(user_id, db)
+        global_prompt.initial_prompt = history_prompt
+        global_prompt._prompt = history_prompt.copy()
     base = remove_offtopic(message.text)
     offtopic_prompt = f"Let's change the topic.\n{base}"
+    if user_id:
+        db.register_user(message.from_user)
+        db.add_history(user_id, "user", message.text)
     response = extract_dan(generic_chat(global_prompt, offtopic_prompt, user_id, ai_mode=get_user_ai_mode(user_id)))
+    if user_id:
+        db.add_history(user_id, "assistant", response)
     await message.reply_text(response, parse_mode=ParseMode.HTML)
 
 async def mode_command_handler(update: Update, context: CallbackContext) -> None:
@@ -143,12 +158,14 @@ async def mention_handler(update: Update, context: CallbackContext) -> None:
 
         try:
             global_prompt.reset()
-            user_system_prompt = get_user_system_prompt(user_id)
-            global_prompt.initial_prompt = user_system_prompt
-            global_prompt._prompt = user_system_prompt.copy()
+            history_prompt = get_prompt_with_history(user_id, db)
+            global_prompt.initial_prompt = history_prompt
+            global_prompt._prompt = history_prompt.copy()
 
-            response = extract_dan(generic_chat(global_prompt, text, user_id, ai_mode=get_user_ai_mode(user_id)))
             db.register_user(message.from_user)
+            db.add_history(user_id, "user", message.text)
+            response = extract_dan(generic_chat(global_prompt, text, user_id, ai_mode=get_user_ai_mode(user_id)))
+            db.add_history(user_id, "assistant", response)
             db.register_message(message, message)
             reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
             global_prompt.conversation.add_message(reply)
@@ -170,9 +187,16 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
         and message.reply_to_message.from_user.id == context.bot.id
     ):
         try:
+            global_prompt.reset()
+            history_prompt = get_prompt_with_history(user_id, db)
+            global_prompt.initial_prompt = history_prompt
+            global_prompt._prompt = history_prompt.copy()
+            db.register_user(message.from_user)
+            db.add_history(user_id, "user", message.text)
             response = extract_dan(
                 generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id))
             )
+            db.add_history(user_id, "assistant", response)
             db.register_message(message, message)
             reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
             global_prompt.conversation.add_message(reply)
@@ -188,6 +212,27 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
 
     if is_new_user:
         db.register_user(message.from_user)
+        photo_data = None
+        try:
+            photos = await context.bot.get_user_profile_photos(user_id, limit=1)
+            if photos.total_count:
+                file = await context.bot.getFile(photos.photos[0][-1].file_id)
+                photo_url = file.file_path
+                if not photo_url.startswith("http"):
+                    bot_token = context.bot.token
+                    photo_url = f"https://api.telegram.org/file/bot{bot_token}/{file.file_path}"
+                photo_data = download_and_encode_image(photo_url)
+        except Exception:
+            pass
+
+        analysis_prompt = "Describe this user for future reference."
+        if message.from_user.full_name:
+            analysis_prompt += f" Name: {message.from_user.full_name}."
+        user_summary = extract_dan(
+            generic_chat(service_prompt, analysis_prompt, user_id, image_data=photo_data, ai_mode=get_user_ai_mode(user_id))
+        )
+        db.add_history(user_id, "system", user_summary, important=True)
+
         new_user_prompt = (
             "You're in Telegram chat, where a user has interacted with you for the first time, write a greeting message to him."
         )
@@ -197,16 +242,23 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
             generic_chat(service_prompt, new_user_prompt, user_id, ai_mode=get_user_ai_mode(user_id))
         )
         usage = f"<span class=\"tg-spoiler\">{print_usage()}</span>"
+        db.add_history(user_id, "assistant", new_user_greeting)
         await message.reply_text(f"{new_user_greeting}\n\n{usage}", parse_mode=ParseMode.HTML)
 
     # Respond to the actual message content
     try:
+        global_prompt.reset()
+        history_prompt = get_prompt_with_history(user_id, db)
+        global_prompt.initial_prompt = history_prompt
+        global_prompt._prompt = history_prompt.copy()
+
+        db.register_user(message.from_user)
+        db.add_history(user_id, "user", message.text)
         response = extract_dan(
             generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id))
         )
 
-        if not is_new_user:
-            db.register_user(message.from_user)
+        db.add_history(user_id, "assistant", response)
 
         db.register_message(message, message)
         reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
@@ -241,9 +293,9 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
                 except Exception:
                     pass
     global_prompt.reset()
-    user_system_prompt = get_user_system_prompt(user_id)
-    global_prompt.initial_prompt = user_system_prompt
-    global_prompt._prompt = user_system_prompt.copy()
+    history_prompt = get_prompt_with_history(user_id, db)
+    global_prompt.initial_prompt = history_prompt
+    global_prompt._prompt = history_prompt.copy()
     photo_prompt = "You're in a Telegram chat where a user sent you a photo."
     if msg_caption:
         photo_prompt += f" They included this caption: \"{msg_caption}\""
@@ -251,10 +303,11 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
         photo_prompt += f" They also shared these links: {caption_urls}"
     photo_prompt += " Please look at the image and respond with your thoughts about it."
     try:
+        db.register_user(message.from_user)
+        db.add_history(user_id, "user", message.caption or "<photo>")
         response = extract_dan(generic_chat(global_prompt, photo_prompt, user_id, image_data=image_data, ai_mode=get_user_ai_mode(user_id)))
 
-        # Register user and message
-        db.register_user(message.from_user)
+        db.add_history(user_id, "assistant", response)
         db.register_message(message, message)
 
         reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
@@ -272,9 +325,9 @@ async def url_msg_handler(update: Update, context: CallbackContext) -> None:
     body = text.replace(url, '')
     user_id = message.from_user.id
     global_prompt.reset()
-    user_system_prompt = get_user_system_prompt(user_id)
-    global_prompt.initial_prompt = user_system_prompt
-    global_prompt._prompt = user_system_prompt.copy()
+    history_prompt = get_prompt_with_history(user_id, db)
+    global_prompt.initial_prompt = history_prompt
+    global_prompt._prompt = history_prompt.copy()
     if is_youtube_url(url):
         video_id = extract_video_id(url)
         yt_info = get_video_info_api(video_id)
@@ -282,10 +335,11 @@ async def url_msg_handler(update: Update, context: CallbackContext) -> None:
                      f" Description: {yt_info['description']}, From channel: {yt_info['channelname']}."
                      f" User's note: {body} What do you think about it?")
         thumbnail_url = yt_info.get('thumbnail')
+        db.register_user(message.from_user)
+        db.add_history(user_id, "user", text)
         response = extract_dan(generic_chat(global_prompt, yt_prompt, user_id, image_url=thumbnail_url, ai_mode=get_user_ai_mode(user_id)))
 
-        # Register user and message
-        db.register_user(message.from_user)
+        db.add_history(user_id, "assistant", response)
         db.register_message(message, message)
 
         await message.reply_text(response, parse_mode=ParseMode.HTML)
@@ -298,10 +352,11 @@ async def url_msg_handler(update: Update, context: CallbackContext) -> None:
         url_prompt = (f"You're in Telegram chat where one user shared a website titled: '{info['title']}',"
                       f" Description: {info['description']}. User's note: {body} What do you think about it?")
         thumbnail_url = info.get('thumbnail')
+        db.register_user(message.from_user)
+        db.add_history(user_id, "user", text)
         response = extract_dan(generic_chat(global_prompt, url_prompt, user_id, image_url=thumbnail_url, ai_mode=get_user_ai_mode(user_id)))
 
-        # Register user and message
-        db.register_user(message.from_user)
+        db.add_history(user_id, "assistant", response)
         db.register_message(message, message)
 
         await message.reply_text(response, parse_mode=ParseMode.HTML)

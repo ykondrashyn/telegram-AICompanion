@@ -13,7 +13,9 @@ Telegram AI Companion is a Python-based Telegram bot that can engage in intellig
 - **YouTube Integration**: Special handling for YouTube links with video information and thumbnail analysis
 - **Link Preview**: Automatic link analysis and preview generation with image understanding
 - **Persistent Preferences**: User preferences for AI mode and prompts are stored in the SQLite database
+- **Conversation Memory**: Up to 50 recent exchanges per user are stored in a circular buffer, with important notes preserved
 - **Automatic Thread Reset**: Conversations reset after 10 exchanges to avoid hitting token limits
+- **Concise Default Prompt**: The bot now uses a short, specific personality prompt by default
 ## Architecture
 
 The bot is organized as a Python package `ai_companion` separating AI providers, prompt management, handlers and utilities. The `bot.py` entry point simply calls `ai_companion.main.run()`.

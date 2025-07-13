@@ -39,7 +39,8 @@ class PromptLoader:
 
 prompt_loader = PromptLoader()
 
-DEFAULT_PROMPT = "dan"
+# Use a concise default prompt to keep replies short and focused
+DEFAULT_PROMPT = "concise"
 user_prompts = {}
 user_ai_modes = {}
 
@@ -157,4 +158,13 @@ def get_user_system_prompt(user_id):
     if prompt_content:
         return [{"role": "system", "content": prompt_content}]
     return [{"role": "system", "content": "You are a friendly assistant"}]
+
+def get_prompt_with_history(user_id: int, db: DBsqlite, limit: int = 20):
+    """Return system prompt combined with user's conversation history."""
+    system_prompt = get_user_system_prompt(user_id)
+    try:
+        history = db.get_history(user_id, limit)
+    except Exception:
+        history = []
+    return system_prompt + history
 
