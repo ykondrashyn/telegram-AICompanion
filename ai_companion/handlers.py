@@ -180,31 +180,12 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
 
     user_id = message.from_user.id
 
-    # If the reply is not directed at the bot, simply respond without greeting
+    # Ignore replies not directed at the bot
     if not (
         message.reply_to_message
         and message.reply_to_message.from_user
         and message.reply_to_message.from_user.id == context.bot.id
     ):
-        try:
-            global_prompt.reset()
-            history_prompt = get_prompt_with_history(user_id, db)
-            global_prompt.initial_prompt = history_prompt
-            global_prompt._prompt = history_prompt.copy()
-            db.register_user(message.from_user)
-            db.add_history(user_id, "user", message.text)
-            response = extract_dan(
-                generic_chat(global_prompt, message.text, user_id, ai_mode=get_user_ai_mode(user_id))
-            )
-            db.add_history(user_id, "assistant", response)
-            db.register_message(message, message)
-            reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
-            global_prompt.conversation.add_message(reply)
-        except Exception as e:
-            logger.error(f"Error in bot reply: {e}")
-            await message.reply_text(
-                "Sorry, I'm experiencing technical difficulties. Please try again later."
-            )
         return
 
     # Determine if this user interacted before in this chat
@@ -212,6 +193,8 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
 
     if is_new_user:
         db.register_user(message.from_user)
+        if message.reply_to_message and message.reply_to_message.text:
+            db.add_history(user_id, "assistant", message.reply_to_message.text, important=True)
         photo_data = None
         try:
             photos = await context.bot.get_user_profile_photos(user_id, limit=1)
@@ -273,6 +256,16 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
     if not message.from_user:
         return
+    bot_username = context.bot.username
+    if not (
+        (message.caption and f"@{bot_username}" in message.caption)
+        or (
+            message.reply_to_message
+            and message.reply_to_message.from_user
+            and message.reply_to_message.from_user.id == context.bot.id
+        )
+    ):
+        return
     user_id = message.from_user.id
     photo = await context.bot.getFile(message.photo[-1].file_id)
     photo_url = photo.file_path
@@ -281,6 +274,8 @@ async def photo_msg_handler(update: Update, context: CallbackContext) -> None:
         photo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo.file_path}"
     image_data = download_and_encode_image(photo_url)
     msg_caption = message.caption or ""
+    if f"@{bot_username}" in msg_caption:
+        msg_caption = msg_caption.replace(f"@{bot_username}", "").strip()
     caption_urls = ''
     if msg_caption:
         caption_url_list = find_url(msg_caption)
@@ -320,7 +315,19 @@ async def url_msg_handler(update: Update, context: CallbackContext) -> None:
     message = update.message
     if not message.from_user:
         return
+    bot_username = context.bot.username
+    if not (
+        f"@{bot_username}" in message.text
+        or (
+            message.reply_to_message
+            and message.reply_to_message.from_user
+            and message.reply_to_message.from_user.id == context.bot.id
+        )
+    ):
+        return
     text = message.text
+    if f"@{bot_username}" in text:
+        text = text.replace(f"@{bot_username}", "").strip()
     url = extract_first_url(text)
     body = text.replace(url, '')
     user_id = message.from_user.id

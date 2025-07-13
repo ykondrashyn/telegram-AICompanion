@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 from telegram import Update, Bot
 from telegram.ext import CallbackContext
 from ai_companion import handlers
-from conftest import create_message, create_join_message, create_user
+from conftest import create_message, create_join_message, create_user, create_bot_message
 
 # Dummy database stub
 class DummyDB:
@@ -12,9 +12,10 @@ class DummyDB:
         self.register_user_called = False
         self.register_message_called = False
         self.checked_user = False
+        self.history = []
 
     def add_history(self, uid, role, content, important=False):
-        pass
+        self.history.append((uid, role, content, important))
 
     def get_history(self, uid, limit=10):
         return []
@@ -108,7 +109,7 @@ async def test_offtopic_handler(application, bot, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_url_handler_generic(application, bot, monkeypatch):
-    text = "Check https://example.com"
+    text = "@ai_bot Check https://example.com"
     message = create_message(bot, text)
     update = Update(update_id=6, message=message)
     context = await create_context(update, application)
@@ -121,7 +122,7 @@ async def test_url_handler_generic(application, bot, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_photo_handler(application, bot, monkeypatch):
-    message = create_message(bot, caption="hi", photo=True)
+    message = create_message(bot, caption="@ai_bot hi", photo=True)
     update = Update(update_id=7, message=message)
     context = await create_context(update, application)
     monkeypatch.setattr(handlers, "download_and_encode_image", AsyncMock(return_value=b"x"))
@@ -163,7 +164,7 @@ async def test_reply_not_to_bot(application, bot, monkeypatch):
     monkeypatch.setattr(handlers, "generic_chat", lambda *a, **k: "DAN:rep")
     with patch("telegram.Bot.send_message", new=AsyncMock()) as send_mock:
         await handlers.bot_reply_handler(update, context)
-        send_mock.assert_awaited_once()
+        send_mock.assert_not_called()
         assert not db_stub.checked_user
 
 @pytest.mark.asyncio
@@ -224,7 +225,7 @@ async def test_ignore_private(application, bot):
 
 @pytest.mark.asyncio
 async def test_url_handler_youtube(application, bot, monkeypatch):
-    text = "Check https://youtu.be/abcdefghijk"
+    text = "@ai_bot Check https://youtu.be/abcdefghijk"
     message = create_message(bot, text)
     update = Update(update_id=16, message=message)
     context = await create_context(update, application)
@@ -239,7 +240,7 @@ async def test_url_handler_youtube(application, bot, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_photo_handler_caption_url(application, bot, monkeypatch):
-    message = create_message(bot, caption="Check https://example.com", photo=True)
+    message = create_message(bot, caption="@ai_bot Check https://example.com", photo=True)
     update = Update(update_id=17, message=message)
     context = await create_context(update, application)
     monkeypatch.setattr(handlers, "download_and_encode_image", AsyncMock(return_value=b"x"))
@@ -252,3 +253,16 @@ async def test_photo_handler_caption_url(application, bot, monkeypatch):
     with patch("telegram.Bot.send_message", new=AsyncMock()) as send_mock:
         await handlers.photo_msg_handler(update, context)
         send_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_reply_fork_new_user(application, bot, monkeypatch):
+    replied = create_bot_message(bot, message_id=60)
+    message = create_message(bot, "fork", reply_to_msg=replied, message_id=61, user_id=55)
+    update = Update(update_id=18, message=message)
+    context = await create_context(update, application)
+    monkeypatch.setattr(handlers, "generic_chat", lambda *a, **k: "DAN:fork")
+    with patch("telegram.Bot.send_message", new=AsyncMock()) as send_mock:
+        await handlers.bot_reply_handler(update, context)
+        assert send_mock.await_count == 2
+    assert (55, "assistant", "Bot message", True) in db_stub.history
