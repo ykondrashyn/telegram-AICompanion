@@ -2,6 +2,7 @@ import logging
 import os
 import base64
 import urllib.request
+import tempfile
 from openai import OpenAI
 from .config import OPENAI_API_KEY, XAI_API_KEY
 
@@ -22,10 +23,11 @@ def download_and_encode_image(file_url):
         opener = urllib.request.build_opener()
         opener.addheaders = list(headers.items())
         urllib.request.install_opener(opener)
-        urllib.request.urlretrieve(file_url, 'temp_image.jpg')
-        with open('temp_image.jpg', 'rb') as image_file:
-            image_data = base64.b64encode(image_file.read()).decode('utf-8')
-        os.remove('temp_image.jpg')
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+            urllib.request.urlretrieve(file_url, tmp.name)
+            tmp.seek(0)
+            image_data = base64.b64encode(tmp.read()).decode('utf-8')
+        os.remove(tmp.name)
         return image_data
     except Exception as e:
         logger.error(f"Error downloading/encoding image: {e}")

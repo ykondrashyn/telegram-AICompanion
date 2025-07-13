@@ -1,7 +1,9 @@
 import os
 import uuid
 import logging
-from .config import DEFAULT_AI_MODE
+from .config import DEFAULT_AI_MODE, DB_FILENAME
+from .db import DBsqlite
+from .ai import openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,28 @@ DEFAULT_PROMPT = "dan"
 user_prompts = {}
 user_ai_modes = {}
 
+# Optional database instance for persisting preferences
+db_instance: DBsqlite | None = None
+
+def set_db_instance(db: DBsqlite):
+    """Attach a DB instance and load stored preferences."""
+    global db_instance
+    db_instance = db
+    load_preferences_from_db()
+
+def load_preferences_from_db():
+    if not db_instance:
+        return
+    try:
+        prefs = db_instance.get_all_preferences()
+        for uid, pref in prefs.items():
+            if pref.get("ai_mode"):
+                user_ai_modes[uid] = pref["ai_mode"]
+            if pref.get("system_prompt"):
+                user_prompts[uid] = pref["system_prompt"]
+    except Exception as exc:
+        logger.error("Failed loading preferences: %s", exc)
+
 class Conversation:
     def __init__(self):
         self.id = uuid.uuid4()
@@ -78,12 +102,13 @@ class PromptManager:
         self.calls = 0
         self.conversation.reset()
 
-    def communicate(self, text:str):
-        if self.calls < self.reset_after_calls:
-            self._prompt.append({"role":"user","content":text})
-            self.calls += 1
-            return self._prompt
-        raise ValueError("Maximum number of calls reached")
+    def communicate(self, text: str):
+        """Append user text, resetting conversation if needed."""
+        if self.calls >= self.reset_after_calls:
+            self.reset()
+        self._prompt.append({"role": "user", "content": text})
+        self.calls += 1
+        return self._prompt
 
     def save_feedback(self, text:str):
         self._prompt.append({"role":"assistant","content":text})
@@ -98,7 +123,18 @@ def get_user_ai_mode(user_id):
     return user_ai_modes.get(user_id, DEFAULT_AI_MODE)
 
 def set_user_ai_mode(user_id, mode):
+    mode = mode.lower()
+    valid = {"grok", "gpt"}
+    if mode not in valid:
+        return False
+    if mode == "gpt" and not openai_client:
+        return False
     user_ai_modes[user_id] = mode
+    if db_instance:
+        try:
+            db_instance.save_user_ai_mode(user_id, mode)
+        except Exception as exc:
+            logger.error("Failed to save AI mode: %s", exc)
     return True
 
 def get_user_prompt(user_id):
@@ -107,6 +143,11 @@ def get_user_prompt(user_id):
 def set_user_prompt(user_id, prompt_name):
     if prompt_name in prompt_loader.list_prompts():
         user_prompts[user_id] = prompt_name
+        if db_instance:
+            try:
+                db_instance.save_user_prompt(user_id, prompt_name)
+            except Exception as exc:
+                logger.error("Failed to save prompt: %s", exc)
         return True
     return False
 

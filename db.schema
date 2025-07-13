@@ -48,3 +48,9 @@ CREATE TABLE IF NOT EXISTS "chats" (
 CREATE INDEX IF NOT EXISTS idx_users_tuser_id ON users(tuser_id);
 CREATE INDEX IF NOT EXISTS idx_chats_tchat_id ON chats(tchat_id);
 CREATE INDEX IF NOT EXISTS idx_messages_user_chat ON messages(user_id, chat_id);
+CREATE TABLE IF NOT EXISTS "user_preferences" (
+        "user_id" INTEGER PRIMARY KEY,
+        "ai_mode" TEXT DEFAULT 'grok',
+        "system_prompt" TEXT DEFAULT 'dan',
+        FOREIGN KEY("user_id") REFERENCES "users"("id")
+);
