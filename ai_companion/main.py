@@ -70,8 +70,7 @@ def run():
             # Run with network error handling
             application.run_polling(
                 allowed_updates=None,
-                drop_pending_updates=True,
-                close_loop=False
+                drop_pending_updates=True
             )
             break  # If we get here, the bot ran successfully
 
