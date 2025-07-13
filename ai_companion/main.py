@@ -9,6 +9,7 @@ from .handlers import (
     offtopic_command_handler,
     mode_command_handler,
     prompt_command_handler,
+    clear_history_command_handler,
     photo_msg_handler,
     bot_reply_handler,
     url_msg_handler,
@@ -57,6 +58,7 @@ def run():
             application.add_handler(CommandHandler("offtopic", offtopic_command_handler))
             application.add_handler(CommandHandler("mode", mode_command_handler))
             application.add_handler(CommandHandler("prompt", prompt_command_handler))
+            application.add_handler(CommandHandler("clearhistory", clear_history_command_handler))
             # Only handle messages from actual users (not forwarded from channels)
             application.add_handler(MessageHandler(filters.PHOTO & filters.User(), photo_msg_handler))
             application.add_handler(MessageHandler(filters.REPLY & filters.User(), bot_reply_handler))

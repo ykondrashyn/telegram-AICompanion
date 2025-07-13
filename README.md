@@ -118,6 +118,7 @@ The bot is organized as a Python package `ai_companion` separating AI providers,
 
 ### Other Commands
 - `/offtopic [message]` - Start a new conversation topic
+- `/clearhistory` - Remove your saved conversation history
 - Reply to any bot message to continue the conversation
   (messages without a mention or reply are ignored)
 
@@ -148,7 +149,7 @@ You can add custom prompts by creating new `.txt` files in the `prompts/` direct
 ### Database
 
 The bot uses SQLite to store user preferences and conversation history. The database is automatically created on first run.
-Indexes are created on common lookup fields to keep queries fast even as the database grows. The helper in `ai_companion/db.py` wraps SQLite access and keeps a single connection open.
+Indexes are created on common lookup fields to keep queries fast even as the database grows. The helper in `ai_companion/db.py` now uses `aiosqlite` for fully asynchronous access.
 
 ## Features in Detail
 

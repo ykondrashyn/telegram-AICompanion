@@ -15,7 +15,7 @@ lxml>=4.6.0
 # Media processing (removed moviepy - not used)
 
 # Database
-# No additional dependencies needed for SQLite (built into Python)
+aiosqlite>=0.19
 
 # YouTube API (optional)
 google-api-python-client>=2.0.0
