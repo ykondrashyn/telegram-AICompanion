@@ -35,5 +35,7 @@ This directory contains unit tests for the Telegram handlers. The tests use
 | `test_photo_handler_caption_url` | Photo caption URLs are parsed and included in the prompt. |
 | `test_joined_bot_added` | When the bot joins a group it sends a welcome message and registers the chat. |
 | `test_joined_regular_user` | No action is taken when a regular user joins the group. |
+| `test_clear_history_command` | `/clearhistory` removes a user's conversation history. |
+| `test_add_and_get_history` | Verifies database history storage functions. |
 
 

@@ -3,6 +3,7 @@ import uuid
 import logging
 from .config import DEFAULT_AI_MODE, DB_FILENAME
 from .db import DBsqlite
+import asyncio
 from .ai import openai_client
 
 logger = logging.getLogger(__name__)
@@ -47,17 +48,17 @@ user_ai_modes = {}
 # Optional database instance for persisting preferences
 db_instance: DBsqlite | None = None
 
-def set_db_instance(db: DBsqlite):
+async def set_db_instance(db: DBsqlite):
     """Attach a DB instance and load stored preferences."""
     global db_instance
     db_instance = db
-    load_preferences_from_db()
+    await load_preferences_from_db()
 
-def load_preferences_from_db():
+async def load_preferences_from_db():
     if not db_instance:
         return
     try:
-        prefs = db_instance.get_all_preferences()
+        prefs = await db_instance.get_all_preferences()
         for uid, pref in prefs.items():
             if pref.get("ai_mode"):
                 user_ai_modes[uid] = pref["ai_mode"]
@@ -123,7 +124,7 @@ class ServicePrompt(PromptManager):
 def get_user_ai_mode(user_id):
     return user_ai_modes.get(user_id, DEFAULT_AI_MODE)
 
-def set_user_ai_mode(user_id, mode):
+async def set_user_ai_mode(user_id, mode):
     mode = mode.lower()
     valid = {"grok", "gpt"}
     if mode not in valid:
@@ -133,7 +134,7 @@ def set_user_ai_mode(user_id, mode):
     user_ai_modes[user_id] = mode
     if db_instance:
         try:
-            db_instance.save_user_ai_mode(user_id, mode)
+            await db_instance.save_user_ai_mode(user_id, mode)
         except Exception as exc:
             logger.error("Failed to save AI mode: %s", exc)
     return True
@@ -141,12 +142,12 @@ def set_user_ai_mode(user_id, mode):
 def get_user_prompt(user_id):
     return user_prompts.get(user_id, DEFAULT_PROMPT)
 
-def set_user_prompt(user_id, prompt_name):
+async def set_user_prompt(user_id, prompt_name):
     if prompt_name in prompt_loader.list_prompts():
         user_prompts[user_id] = prompt_name
         if db_instance:
             try:
-                db_instance.save_user_prompt(user_id, prompt_name)
+                await db_instance.save_user_prompt(user_id, prompt_name)
             except Exception as exc:
                 logger.error("Failed to save prompt: %s", exc)
         return True
@@ -159,11 +160,11 @@ def get_user_system_prompt(user_id):
         return [{"role": "system", "content": prompt_content}]
     return [{"role": "system", "content": "You are a friendly assistant"}]
 
-def get_prompt_with_history(user_id: int, db: DBsqlite, limit: int = 20):
+async def get_prompt_with_history(user_id: int, db: DBsqlite, limit: int = 20):
     """Return system prompt combined with user's conversation history."""
     system_prompt = get_user_system_prompt(user_id)
     try:
-        history = db.get_history(user_id, limit)
+        history = await db.get_history(user_id, limit)
     except Exception:
         history = []
     return system_prompt + history
