@@ -182,6 +182,30 @@ Each user can choose their preferred AI personality:
 - Extracts title, description, and images
 - AI provides commentary on linked content
 
+## Message Types Handling
+
+Telegram delivers many kinds of updates. The bot focuses on a few that make
+sense for conversational AI while ignoring others:
+
+| Message type                 | Current behaviour |
+|------------------------------|------------------|
+| Text mention or reply        | Triggers an AI response. When replying to a
+message and tagging the bot, the original text is included so the AI has
+context. |
+| Text containing URLs         | Generates a link preview and asks the AI to
+comment on it. YouTube links receive special handling. |
+| Photo messages               | Downloaded and analysed by the AI when the bot
+is mentioned or the photo replies to it. |
+| Forwarded messages           | If a post is forwarded from a channel or
+another chat, the bot gives its perspective on the forwarded text. |
+| Channel posts in linked chats| Channel posts appearing in a group trigger an
+AI response summarising or commenting on the post. |
+| Reactions to bot messages    | Negative or strange emoji reactions prompt a
+short reply from the bot. |
+| Other media (audio, voice,
+sticker, location, etc.) | Currently ignored to keep conversations focused.
+
+
 ## Troubleshooting
 
 ### Common Issues
@@ -198,14 +222,9 @@ The bot logs important events and errors. Check the console output for debugging
 ## Testing
 
 Unit tests live in the `tests/` directory and use `pytest` with
-<<<<<<< HEAD
-`pytest-asyncio` for asynchronous handlers. Install the extra dependencies and
-run the suite from the project root:
-=======
 `pytest-asyncio` for asynchronous handlers. They cover bot commands,
-handling of images, new members joining, reply scenarios and more. Install the
-extra dependencies and run the suite from the project root:
->>>>>>> 7f8df82 (Fix private chat filter and clarify tests)
+handling of images, new members joining, reply scenarios and more.
+Install the extra dependencies and run the suite from the project root:
 
 ```bash
 pip install -r requirements.txt pytest pytest-asyncio

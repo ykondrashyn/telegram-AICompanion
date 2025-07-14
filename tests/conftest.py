@@ -43,7 +43,7 @@ def create_message(bot, text=None, *, message_id=1, user_id=123, chat_id=-100,
                    caption=None, photo=False, command=False,
                    audio=False, document=False, video=False, voice=False,
                    sticker=False, dice=False, contact=False, location=False,
-                   poll=False):
+                   poll=False, forward_from_chat=None, forward_from_user=None, automatic=False):
     data = {
         "message_id": message_id,
         "date": int(datetime.now().timestamp()),
@@ -88,6 +88,20 @@ def create_message(bot, text=None, *, message_id=1, user_id=123, chat_id=-100,
         p1 = PollOption("a", 0)
         poll_obj = Poll("id", "q", [p1], 0, False, True, "regular", False)
         data["poll"] = poll_obj.to_dict()
+    if forward_from_chat is not None:
+        data["forward_origin"] = {
+            "type": "chat",
+            "date": int(datetime.now().timestamp()),
+            "sender_chat": forward_from_chat.to_dict(),
+        }
+    if forward_from_user is not None:
+        data["forward_origin"] = {
+            "type": "user",
+            "date": int(datetime.now().timestamp()),
+            "sender_user": forward_from_user.to_dict(),
+        }
+    if automatic:
+        data["is_automatic_forward"] = True
     if reply_to_msg is not None:
         data["reply_to_message"] = reply_to_msg.to_dict()
     elif reply_to_bot:

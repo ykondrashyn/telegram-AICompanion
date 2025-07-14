@@ -69,8 +69,10 @@ from .messages import (
     joined,
     ignore_private,
     channel_message_handler,
+    forward_message_handler,
     mention_handler,
     bot_reply_handler,
+    reaction_handler,
     global_prompt as _g2, service_prompt as _s2, DB as _db2,
 )
 from .media import (
@@ -94,8 +96,10 @@ __all__ = [
     'joined',
     'ignore_private',
     'channel_message_handler',
+    'forward_message_handler',
     'mention_handler',
     'bot_reply_handler',
+    'reaction_handler',
     'photo_msg_handler',
     'url_msg_handler',
     'generic_chat',
