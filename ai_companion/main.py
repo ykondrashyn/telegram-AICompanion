@@ -1,6 +1,7 @@
 import logging
 import time
 import socket
+import asyncio
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from telegram.error import NetworkError, TimedOut
 from .config import TELEGRAM_BOT_TOKEN
@@ -14,6 +15,7 @@ from .handlers import (
     bot_reply_handler,
     url_msg_handler,
     ignore_private,
+    channel_message_handler,
     mention_handler
 )
 
@@ -49,6 +51,14 @@ def run():
     for attempt in range(max_retries):
         try:
             logger.info(f"Starting Telegram bot (attempt {attempt + 1}/{max_retries})")
+            # python-telegram-bot relies on an event loop being present in the
+            # main thread, which is no longer created automatically on
+            # Python 3.12+. Create one if necessary before initializing
+            # the application.
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                asyncio.set_event_loop(asyncio.new_event_loop())
             application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
             # Add error handler
@@ -59,11 +69,11 @@ def run():
             application.add_handler(CommandHandler("mode", mode_command_handler))
             application.add_handler(CommandHandler("prompt", prompt_command_handler))
             application.add_handler(CommandHandler("clearhistory", clear_history_command_handler))
-            # Only handle messages from actual users (not forwarded from channels)
             application.add_handler(MessageHandler(filters.PHOTO & filters.User(), photo_msg_handler))
             application.add_handler(MessageHandler(filters.REPLY & filters.User(), bot_reply_handler))
             application.add_handler(MessageHandler(filters.Entity("url") & filters.User(), url_msg_handler))
             application.add_handler(MessageHandler(filters.Entity("mention") & filters.User(), mention_handler))
+            application.add_handler(MessageHandler(filters.SenderChat(), channel_message_handler))
             application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, joined))
             application.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, ignore_private))
 

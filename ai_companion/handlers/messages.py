@@ -31,6 +31,27 @@ global_prompt: PromptManager | None = None
 service_prompt: ServicePrompt | None = None
 DB: DBsqlite | None = None
 
+async def channel_message_handler(update: Update, context: CallbackContext) -> None:
+    """Handle messages posted by channels in linked chats."""
+    message = update.message
+    if not message or not message.sender_chat:
+        return
+    channel_id = message.sender_chat.id
+    try:
+        global_prompt.reset()
+        history_prompt = await get_prompt_with_history(channel_id, DB)
+        global_prompt.initial_prompt = history_prompt
+        global_prompt._prompt = history_prompt.copy()
+
+        text = message.text or message.caption or ""
+        response = extract_dan(
+            generic_chat(global_prompt, text, channel_id, ai_mode=get_user_ai_mode(channel_id))
+        )
+        reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
+        global_prompt.conversation.add_message(reply)
+    except Exception as e:
+        logger.error(f"Error handling channel message: {e}")
+
 async def joined(update: Update, context: CallbackContext) -> None:
     for member in update.message.new_chat_members:
         if member.username == context.bot.username:

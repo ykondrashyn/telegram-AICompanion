@@ -68,6 +68,7 @@ from .commands import (
 from .messages import (
     joined,
     ignore_private,
+    channel_message_handler,
     mention_handler,
     bot_reply_handler,
     global_prompt as _g2, service_prompt as _s2, DB as _db2,
@@ -92,6 +93,7 @@ __all__ = [
     'clear_history_command_handler',
     'joined',
     'ignore_private',
+    'channel_message_handler',
     'mention_handler',
     'bot_reply_handler',
     'photo_msg_handler',
