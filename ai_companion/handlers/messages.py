@@ -58,16 +58,24 @@ async def channel_message_handler(update: Update, context: CallbackContext) -> N
 async def forward_message_handler(update: Update, context: CallbackContext) -> None:
     """Handle forwarded messages from other chats or channels."""
     message = update.message
-    if not message or not (message.forward_origin or message.forward_from_chat or message.forward_from):
+    fo = getattr(message, "forward_origin", None)
+    if not message or fo is None:
         return
     user_id = message.from_user.id if message.from_user else message.chat_id
     origin = "a chat"
-    if message.forward_origin and getattr(message.forward_origin, 'title', None):
-        origin = message.forward_origin.title
-    elif message.forward_from_chat:
-        origin = message.forward_from_chat.title or message.forward_from_chat.username or origin
-    elif message.forward_from:
-        origin = message.forward_from.full_name
+    try:
+        if fo.type == "chat":
+            origin = fo.sender_chat.title or fo.sender_chat.username or origin
+        elif fo.type == "channel":
+            origin = fo.chat.title or fo.chat.username or origin
+        elif fo.type in {"user", "hidden_user"}:
+            if getattr(fo, "sender_user", None):
+                origin = fo.sender_user.full_name
+            elif getattr(fo, "sender_user_name", None):
+                origin = fo.sender_user_name
+    except Exception:
+        pass
+
     text = message.text or message.caption or ""
     prompt = f"A message was forwarded from {origin}: {text}"
     try:

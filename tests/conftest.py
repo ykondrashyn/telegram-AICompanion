@@ -89,9 +89,18 @@ def create_message(bot, text=None, *, message_id=1, user_id=123, chat_id=-100,
         poll_obj = Poll("id", "q", [p1], 0, False, True, "regular", False)
         data["poll"] = poll_obj.to_dict()
     if forward_from_chat is not None:
-        data["forward_from_chat"] = forward_from_chat.to_dict()
+        data["forward_origin"] = {
+            "type": "chat",
+            "date": int(datetime.now().timestamp()),
+            "sender_chat": forward_from_chat.to_dict(),
+        }
     if forward_from_user is not None:
-        data["forward_from"] = forward_from_user.to_dict()
+        data["forward_origin"] = {
+            "type": "user",
+            "date": int(datetime.now().timestamp()),
+            "sender_user": forward_from_user.to_dict(),
+        }
+
     if automatic:
         data["is_automatic_forward"] = True
     if reply_to_msg is not None:
