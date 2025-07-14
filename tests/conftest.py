@@ -100,6 +100,7 @@ def create_message(bot, text=None, *, message_id=1, user_id=123, chat_id=-100,
             "date": int(datetime.now().timestamp()),
             "sender_user": forward_from_user.to_dict(),
         }
+
     if automatic:
         data["is_automatic_forward"] = True
     if reply_to_msg is not None:

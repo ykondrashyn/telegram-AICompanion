@@ -75,6 +75,7 @@ async def forward_message_handler(update: Update, context: CallbackContext) -> N
                 origin = fo.sender_user_name
     except Exception:
         pass
+
     text = message.text or message.caption or ""
     prompt = f"A message was forwarded from {origin}: {text}"
     try:
