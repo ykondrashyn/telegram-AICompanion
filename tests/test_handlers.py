@@ -3,7 +3,13 @@ from unittest.mock import AsyncMock, patch
 from telegram import Update, Bot
 from telegram.ext import CallbackContext
 from ai_companion import handlers
-from conftest import create_message, create_join_message, create_user, create_bot_message
+from conftest import (
+    create_message,
+    create_join_message,
+    create_user,
+    create_bot_message,
+    create_chat,
+)
 
 # Dummy database stub
 class DummyDB:
@@ -13,6 +19,7 @@ class DummyDB:
         self.register_message_called = False
         self.checked_user = False
         self.history = []
+        self.messages = set()
 
     async def add_history(self, uid, role, content, important=False):
         self.history.append((uid, role, content, important))
@@ -28,10 +35,14 @@ class DummyDB:
 
     async def register_message(self, message, message_sent):
         self.register_message_called = True
+        self.messages.add(message_sent.message_id)
 
     async def check_user(self, message):
         self.checked_user = True
         return False
+
+    async def is_bot_message(self, msg_id):
+        return msg_id in self.messages
 
 db_stub = DummyDB()
 
@@ -267,6 +278,46 @@ async def test_reply_fork_new_user(application, bot, monkeypatch):
         await handlers.bot_reply_handler(update, context)
         assert reply_mock.await_count == 2
     assert (55, "assistant", "Bot message", True) in db_stub.history
+
+
+@pytest.mark.asyncio
+async def test_mention_reply_with_context(application, bot, monkeypatch):
+    original = create_message(bot, "Original", user_id=55, message_id=70)
+    message = create_message(bot, "@ai_bot yes", reply_to_msg=original, message_id=71)
+    update = Update(update_id=20, message=message)
+    context = await create_context(update, application)
+    captured = {}
+    monkeypatch.setattr(handlers.messages, "generic_chat", lambda p, text, uid, **k: captured.setdefault("text", text) or "DAN:ok")
+    with patch("telegram.Bot.send_message", new=AsyncMock()) as send_mock:
+        await handlers.mention_handler(update, context)
+        send_mock.assert_awaited_once()
+    assert "Original" in captured["text"]
+
+
+@pytest.mark.asyncio
+async def test_reaction_handler(application, bot, monkeypatch):
+    from telegram import MessageReactionUpdated, ReactionTypeEmoji
+    from datetime import datetime
+    db_stub.messages.add(80)
+    mr = MessageReactionUpdated(chat=create_chat(-100), message_id=80, date=datetime.now(), old_reaction=[], new_reaction=[ReactionTypeEmoji("😡")], user=create_user(55))
+    update = Update(update_id=21, message_reaction=mr)
+    context = await create_context(update, application)
+    monkeypatch.setattr(handlers.messages, "generic_chat", lambda *a, **k: "DAN:r")
+    with patch("telegram.Bot.send_message", new=AsyncMock()) as send_mock:
+        await handlers.reaction_handler(update, context)
+        send_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_forward_handler(application, bot, monkeypatch):
+    other_chat = create_chat(-200, title="Source")
+    message = create_message(bot, "Forwarded", forward_from_chat=other_chat)
+    update = Update(update_id=22, message=message)
+    context = await create_context(update, application)
+    monkeypatch.setattr(handlers.messages, "generic_chat", lambda *a, **k: "DAN:f")
+    with patch("telegram.Bot.send_message", new=AsyncMock()) as send_mock:
+        await handlers.forward_message_handler(update, context)
+        send_mock.assert_awaited_once()
 
 
 @pytest.mark.asyncio
