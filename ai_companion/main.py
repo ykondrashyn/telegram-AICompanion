@@ -2,7 +2,13 @@ import logging
 import time
 import socket
 import asyncio
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    MessageReactionHandler,
+    filters,
+)
 from telegram.error import NetworkError, TimedOut
 from .config import TELEGRAM_BOT_TOKEN
 from .handlers import (
@@ -16,7 +22,9 @@ from .handlers import (
     url_msg_handler,
     ignore_private,
     channel_message_handler,
-    mention_handler
+    mention_handler,
+    forward_message_handler,
+    reaction_handler,
 )
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -74,6 +82,8 @@ def run():
             application.add_handler(MessageHandler(filters.Entity("url") & filters.USER, url_msg_handler))
             application.add_handler(MessageHandler(filters.Entity("mention") & filters.USER, mention_handler))
             application.add_handler(MessageHandler(filters.SenderChat(), channel_message_handler))
+            application.add_handler(MessageHandler(filters.FORWARDED & filters.USER, forward_message_handler))
+            application.add_handler(MessageReactionHandler(reaction_handler))
             application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, joined))
             application.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, ignore_private))
 

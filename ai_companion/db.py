@@ -264,3 +264,15 @@ class DBsqlite:
             logging.error("Database error in get_history: %s", exc)
             return []
 
+    async def is_bot_message(self, tmsg_id: int) -> bool:
+        """Return True if we have stored a message with this Telegram ID."""
+        await self.connect()
+        try:
+            cur = await self.connection.execute(
+                "SELECT 1 FROM messages WHERE tmsg_id=?", (tmsg_id,)
+            )
+            return await cur.fetchone() is not None
+        except Exception as exc:
+            logging.error("Database error in is_bot_message: %s", exc)
+            return False
+

@@ -26,6 +26,9 @@ from ..db import DBsqlite
 
 logger = logging.getLogger(__name__)
 
+NEGATIVE_REACTIONS = {"😡", "👎", "🤬", "🤮"}
+WEIRD_REACTIONS = {"🤯", "🥴", "🤪", "😳"}
+
 # provided by __init__.py
 global_prompt: PromptManager | None = None
 service_prompt: ServicePrompt | None = None
@@ -52,6 +55,32 @@ async def channel_message_handler(update: Update, context: CallbackContext) -> N
     except Exception as e:
         logger.error(f"Error handling channel message: {e}")
 
+async def forward_message_handler(update: Update, context: CallbackContext) -> None:
+    """Handle forwarded messages from other chats or channels."""
+    message = update.message
+    if not message or not (message.forward_origin or message.forward_from_chat or message.forward_from):
+        return
+    user_id = message.from_user.id if message.from_user else message.chat_id
+    origin = "a chat"
+    if message.forward_origin and getattr(message.forward_origin, 'title', None):
+        origin = message.forward_origin.title
+    elif message.forward_from_chat:
+        origin = message.forward_from_chat.title or message.forward_from_chat.username or origin
+    elif message.forward_from:
+        origin = message.forward_from.full_name
+    text = message.text or message.caption or ""
+    prompt = f"A message was forwarded from {origin}: {text}"
+    try:
+        global_prompt.reset()
+        history_prompt = await get_prompt_with_history(user_id, DB)
+        global_prompt.initial_prompt = history_prompt
+        global_prompt._prompt = history_prompt.copy()
+        response = extract_dan(generic_chat(global_prompt, prompt, user_id, ai_mode=get_user_ai_mode(user_id)))
+        reply = await message.reply_text(response, parse_mode=ParseMode.HTML)
+        global_prompt.conversation.add_message(reply)
+    except Exception as e:
+        logger.error(f"Error handling forwarded message: {e}")
+
 async def joined(update: Update, context: CallbackContext) -> None:
     for member in update.message.new_chat_members:
         if member.username == context.bot.username:
@@ -73,6 +102,10 @@ async def mention_handler(update: Update, context: CallbackContext) -> None:
     bot_username = context.bot.username
     if f"@{bot_username}" in message.text or message.text.startswith(f"@{bot_username}"):
         text = message.text.replace(f"@{bot_username}", "").strip() or "Hello!"
+        if message.reply_to_message:
+            original = message.reply_to_message.text or message.reply_to_message.caption or ""
+            if original:
+                text = f"In reply to: \"{original}\"\n{text}"
         try:
             global_prompt.reset()
             history_prompt = await get_prompt_with_history(user_id, DB)
@@ -157,4 +190,35 @@ async def bot_reply_handler(update: Update, context: CallbackContext) -> None:
         await message.reply_text(
             "Sorry, I'm experiencing technical difficulties. Please try again later."
         )
+
+async def reaction_handler(update: Update, context: CallbackContext) -> None:
+    """Respond to negative or weird reactions to bot messages."""
+    r = update.message_reaction
+    if not r or not r.new_reaction:
+        return
+    try:
+        if not await DB.is_bot_message(r.message_id):
+            return
+    except Exception as e:
+        logger.error(f"Error checking message for reaction: {e}")
+        return
+    emoji = None
+    for react in r.new_reaction:
+        if getattr(react, "emoji", None) in NEGATIVE_REACTIONS | WEIRD_REACTIONS:
+            emoji = react.emoji
+            break
+    if not emoji:
+        return
+    user = r.user or r.actor_chat
+    user_id = user.id if user else r.chat.id
+    prompt = f"A user reacted with {emoji} to my previous message. Reply briefly."
+    try:
+        global_prompt.reset()
+        history_prompt = await get_prompt_with_history(user_id, DB)
+        global_prompt.initial_prompt = history_prompt
+        global_prompt._prompt = history_prompt.copy()
+        response = extract_dan(generic_chat(global_prompt, prompt, user_id, ai_mode=get_user_ai_mode(user_id)))
+        await context.bot.send_message(r.chat.id, response, reply_to_message_id=r.message_id, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.error(f"Error handling reaction: {e}")
 
